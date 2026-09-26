@@ -294,7 +294,7 @@ fun MainScreen() {
                 // 演奏控制
                 if (!accessibilityOn) {
                     Text(
-                        "未授权无障碍权限，无法开始演奏",
+                        "缺少无障碍权限",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )

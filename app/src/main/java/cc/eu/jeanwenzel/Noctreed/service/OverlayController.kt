@@ -30,7 +30,12 @@ object OverlayController {
     val scoreName = _scoreName.asStateFlow()
 
     /** 正在演奏的乐句：index 当前序号（从 1 起）、total 总乐句数、text 该乐句的简谱文本；0/0 表示无 */
-    data class PhraseInfo(val index: Int, val total: Int, val text: String = "")
+    data class PhraseInfo(
+        val index: Int,
+        val total: Int,
+        val text: String = "",
+        val lyric: String = ""
+    )
     private val _phrase = MutableStateFlow(PhraseInfo(0, 0, ""))
     val phrase = _phrase.asStateFlow()
 
@@ -39,8 +44,8 @@ object OverlayController {
     fun updateScoreName(name: String) { _scoreName.value = name }
 
     /** 演奏中由无障碍服务上报当前乐句 */
-    fun notifyPhrase(index: Int, total: Int, text: String = "") {
-        _phrase.value = PhraseInfo(index, total, text)
+    fun notifyPhrase(index: Int, total: Int, text: String = "", lyric: String = "") {
+        _phrase.value = PhraseInfo(index, total, text, lyric)
     }
 
     fun start(context: Context) {

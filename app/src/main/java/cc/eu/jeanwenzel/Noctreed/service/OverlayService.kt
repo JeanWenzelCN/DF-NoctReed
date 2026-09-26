@@ -382,7 +382,7 @@ class OverlayService : Service() {
             else -> {
                 val accOn = HarmonicaAccessibilityService.isEnabled()
                 status.text = when {
-                    !accOn -> "未授权无障碍权限，无法开始演奏"
+                    !accOn -> "缺少无障碍权限"
                     isPortrait -> "竖屏不可演奏，请切换到横屏"
                     else -> when (OverlayController.playState.value) {
                         PlayState.PLAYING -> "演奏中…"
@@ -415,7 +415,10 @@ class OverlayService : Service() {
         }
         if ((playing || paused) && phrase.total > 0) {
             phraseView.visibility = View.VISIBLE
-            phraseView.text = if (phrase.text.isNotEmpty())
+            // 有歌词时优先显示歌词（替换乐句简谱文本，不新增行、不改变悬浮窗尺寸）
+            phraseView.text = if (phrase.lyric.isNotEmpty())
+                "第 ${phrase.index}/${phrase.total} 句  ${phrase.lyric}"
+            else if (phrase.text.isNotEmpty())
                 "第 ${phrase.index}/${phrase.total} 句  ${phrase.text}"
             else
                 "第 ${phrase.index} / ${phrase.total} 句"

@@ -133,33 +133,39 @@ object MidiImporter {
 
         val bpm = (60000000L / track.tempoUs).toInt().coerceIn(30, 300)
 
-        // 量化与转简谱
-        val events = mutableListOf<Pair<String, Int>>() // token to beats(>=1, 1/4 拍单位)
+        // 量化与转简谱。时值单位统一为 tick（1 拍四分音符 = 16 tick），可表达八分/十六分
+        val events = mutableListOf<Pair<String, Int>>() // token to ticks(>=4)
         var prevTick: Long? = null
         val minGap = (ppq / 8).coerceAtLeast(1) // 小于 1/32 拍的间隙忽略
         for ((i, n) in track.notes.withIndex()) {
             val start = n.tick
             val end = track.notes.getOrNull(i + 1)?.tick ?: (start + ppq)
             val durTicks = (end - start).coerceAtLeast(1)
-            val beats = Math.round(durTicks.toDouble() * 4.0 / ppq).toInt().coerceAtLeast(1)
+            // 量化到十六分音符（tick 粒度 4，四舍五入），至少一个十六分
+            val ticks = ((Math.round(durTicks.toDouble() * 16.0 / ppq).toInt() + 2) / 4 * 4).coerceAtLeast(4)
             // 与前一个音之间的休止
             val p = prevTick
             if (p != null && start - p > minGap) {
-                val restBeats = Math.round((start - p).toDouble() * 4.0 / ppq).toInt().coerceAtLeast(1)
-                events.add("0" to restBeats)
+                val restTicks = ((Math.round((start - p).toDouble() * 16.0 / ppq).toInt() + 2) / 4 * 4).coerceAtLeast(4)
+                events.add("0" to restTicks)
             }
-            events.add(toJianpuToken(n.pitch) to beats)
+            events.add(toJianpuToken(n.pitch) to ticks)
             prevTick = start + durTicks
         }
 
         val sb = StringBuilder()
-        events.forEachIndexed { i, (token, beats) ->
+        events.forEachIndexed { i, (token, ticks) ->
             if (i > 0) {
                 sb.append(' ')
                 if (i % 8 == 0) sb.append("| ")
             }
             sb.append(token)
-            repeat(beats - 1) { sb.append('-') }
+            // tick → 记法：整拍部分用 - 延音，零头 8 tick 加一个 _，4 tick 加 __
+            val wholeBeats = ticks / ScoreParser.TICKS_PER_BEAT
+            val rem = ticks % ScoreParser.TICKS_PER_BEAT
+            repeat((wholeBeats - 1).coerceAtLeast(0)) { sb.append('-') }
+            if (rem >= 8) sb.append('_')
+            if (rem % 8 >= 4) sb.append("__")
         }
         return Result(sb.toString().trim(), bpm, track.notes.size)
     }

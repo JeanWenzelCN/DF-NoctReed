@@ -68,9 +68,15 @@ class HarmonicaAccessibilityService : AccessibilityService() {
         if (events.isEmpty()) return
         val phraseCount = parsed.phraseCount
         val phrases = parsed.phrases
-        OverlayController.notifyPhrase(if (phraseCount > 0) 1 else 0, phraseCount, phrases.getOrNull(0) ?: "")
-        // 每次取当前 BPM 计算节拍时长，悬浮窗调速可实时生效
+        val lyrics = parsed.lyrics
+        OverlayController.notifyPhrase(
+            if (phraseCount > 0) 1 else 0, phraseCount,
+            phrases.getOrNull(0) ?: "", lyrics.getOrNull(0) ?: ""
+        )
+        // 每次取当前 BPM 计算一拍（四分音符）的毫秒数，悬浮窗调速与 bpm= 指令可实时生效
         fun beatMsNow(): Long = (60000L / OverlayController.bpm.value).coerceAtLeast(100L)
+        // 事件时值统一为 tick（1 拍 = 16 tick），换算成毫秒
+        fun tickMsNow(ticks: Int): Long = beatMsNow() * ticks / ScoreParser.TICKS_PER_BEAT
         val switchGap = 120L // 状态切换与音符之间的间隔
         paused = false
 
@@ -81,17 +87,21 @@ class HarmonicaAccessibilityService : AccessibilityService() {
 
             for (event in events) {
                 awaitIfPaused()
-                // 乐句变化时上报悬浮窗
-                val pi = when (event) {
-                    is ScoreEvent.Note -> event.phraseIndex
-                    is ScoreEvent.Rest -> event.phraseIndex
-                }
+                // 乐句变化时上报悬浮窗（含歌词）
+                val pi = event.phraseIndex
                 if (pi != lastPhrase) {
                     lastPhrase = pi
-                    OverlayController.notifyPhrase(pi + 1, phraseCount, phrases.getOrNull(pi) ?: "")
+                    OverlayController.notifyPhrase(
+                        pi + 1, phraseCount,
+                        phrases.getOrNull(pi) ?: "", lyrics.getOrNull(pi) ?: ""
+                    )
                 }
                 when (event) {
-                    is ScoreEvent.Rest -> delayInterruptibly(beatMsNow() * event.beats)
+                    is ScoreEvent.Bpm -> {
+                        // 变速指令：立即生效，不产生任何手势与延时
+                        OverlayController.updateBpm(event.bpm)
+                    }
+                    is ScoreEvent.Rest -> delayInterruptibly(tickMsNow(event.ticks))
                     is ScoreEvent.Note -> {
                         // 维度一：音区（互斥），已在目标状态则跳过
                         if (event.register != register) {
@@ -112,8 +122,14 @@ class HarmonicaAccessibilityService : AccessibilityService() {
                         }
                         // 音符键：长按，按住时长约为音长的 90%（长音保持按下，短音近似点触）
                         val noteKey = if (event.degree == 8) "i" else event.degree.toString()
-                        val noteMs = beatMsNow() * event.beats
-                        val holdMs = (noteMs * 9 / 10).coerceAtLeast(60L)
+                        val noteMs = tickMsNow(event.ticks)
+                        // 极短音符（如高 BPM 下的十六分音符）不再追求 90% 按住比例，
+                        // 优先保证按下与松开之间留有间隙，降低糊音/吞音概率
+                        val holdMs = if (noteMs >= 200L) {
+                            (noteMs * 9 / 10).coerceAtLeast(60L)
+                        } else {
+                            (noteMs - 30L).coerceIn(30L, 60L)
+                        }
                         doTapKey(noteKey, holdMs)
                         delayInterruptibly(noteMs - holdMs)
                     }

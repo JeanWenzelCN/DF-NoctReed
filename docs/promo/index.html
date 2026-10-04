@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoctReed — 项目介绍</title>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.2/dist/pixi.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; background:#0a0a0a; overflow:hidden;
+    font-family:"Helvetica Neue","Noto Sans SC","PingFang SC","WenQuanYi Zen Hei","Microsoft YaHei",sans-serif;
+    color:#e8e8e6; }
+  .mono { font-family:"JetBrains Mono","SFMono-Regular",Consolas,monospace; }
+  #stage { position:fixed; inset:0; }
+  #stage canvas { width:100vw !important; height:100vh !important; }
+  #hud { position:fixed; inset:0; pointer-events:none; }
+
+  .scene { position:fixed; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:center; text-align:center; opacity:0; }
+
+  #s1 .big { font-size:150px; font-weight:800; letter-spacing:.04em; }
+  #s1 .sub { margin-top:34px; font-size:26px; letter-spacing:.35em; color:#9a9a96; }
+  #s1 .hint { margin-top:56px; font-size:15px; letter-spacing:.2em; color:#4a4a46; }
+  .cursor { color:#c8a24a; }
+
+  #s2 .lead { font-size:50px; font-weight:700; }
+  #s2 .rows { margin-top:22px; font-size:21px; line-height:1.9; color:#9a9a96; }
+  #s2 .rows b { color:#e8e8e6; font-weight:600; }
+  #demo { margin-top:26px; }
+  #score { font-family:"JetBrains Mono",Consolas,monospace; font-size:30px; letter-spacing:.12em; margin-bottom:22px; color:#7a7a76; }
+  #score .tok { display:inline-block; padding:0 6px; transition:color .08s; }
+  #score .tok.on { color:#c8a24a; font-weight:700; }
+  #score .bar { color:#3a3a38; padding:0 10px; }
+  #kb { position:relative; width:560px; height:150px; margin:0 auto; }
+  .wkey { position:absolute; top:0; width:76px; height:150px; background:#141413;
+    border:1px solid #3a3a38; border-radius:0 0 6px 6px; color:#7a7a76;
+    font-family:Consolas,monospace; font-size:18px; display:flex; align-items:flex-end;
+    justify-content:center; padding-bottom:12px; transition:background .07s,border-color .07s,color .07s; }
+  .bkey { position:absolute; top:0; width:44px; height:92px; background:#0a0a0a;
+    border:1px solid #3a3a38; border-radius:0 0 5px 5px; color:#4a4a46;
+    font-family:Consolas,monospace; font-size:12px; display:flex; align-items:flex-end;
+    justify-content:center; padding-bottom:8px; transition:background .07s,color .07s; }
+  .wkey.hit { background:#c8a24a; border-color:#c8a24a; color:#0a0a0a; }
+  .bkey.hit { background:#8a6d2f; border-color:#c8a24a; color:#e8e8e6; }
+  #democap { margin-top:16px; font-size:15px; letter-spacing:.15em; color:#6a6a66; }
+  #democap .mono { color:#9a9a96; }
+
+  #s3 .cap { font-size:20px; letter-spacing:.4em; color:#9a9a96; }
+  #s3 .row2 { margin-top:40px; display:flex; align-items:center; gap:56px; }
+  #s3 .url { font-size:44px; font-weight:700; border:1px solid #3a3a38; padding:26px 44px; letter-spacing:.02em; }
+  #s3 .qr { width:150px; height:150px; padding:10px; background:#e8e8e6; }
+  #s3 .qr svg { width:100%; height:100%; display:block; }
+  #s3 .chips { margin-top:42px; display:flex; gap:18px; }
+  .chip { font-size:16px; color:#9a9a96; border:1px solid #3a3a38; padding:10px 22px; border-radius:100px; letter-spacing:.08em; }
+  .chip b { color:#e8e8e6; font-weight:600; }
+
+  #s4 .top { display:flex; align-items:center; gap:44px; }
+  #s4 .gpl { font-size:118px; font-weight:800; letter-spacing:.02em; }
+  #s4 .badge { width:190px; }
+  #s4 .tag { margin-top:18px; font-size:30px; letter-spacing:.3em; color:#c8a24a; font-weight:700; }
+  #s4 .freedoms { margin-top:36px; display:flex; gap:20px; }
+  .free-card { width:150px; padding:22px 0 18px; border:1px solid #3a3a38; }
+  .free-card .n { font-family:Consolas,monospace; font-size:14px; color:#c8a24a; }
+  .free-card .t { margin-top:10px; font-size:20px; font-weight:600; }
+  #s4 .copyleft { margin-top:34px; font-size:18px; line-height:1.9; color:#9a9a96; }
+  #s4 .copyleft b { color:#e8e8e6; font-weight:600; }
+
+  #s5 .cap { font-size:20px; letter-spacing:.4em; color:#9a9a96; }
+  #s5 .free { margin-top:22px; font-size:72px; font-weight:800; }
+  #s5 .zero { color:#c8a24a; }
+  #s5 .rows { margin-top:30px; font-size:22px; line-height:2.1; color:#9a9a96; }
+  #s5 .rows b { color:#e8e8e6; font-weight:600; }
+  #s5 .strike { text-decoration:line-through; text-decoration-color:#c8a24a; text-decoration-thickness:2px; color:#7a7a76; margin:0 14px; }
+
+  #s6 .cap { font-size:20px; letter-spacing:.4em; color:#9a9a96; }
+  #s6 .flow { margin-top:46px; display:flex; align-items:center; gap:26px; }
+  #s6 .box { border:1px solid #3a3a38; padding:26px 34px; font-size:19px; line-height:1.75; }
+  #s6 .box b { font-weight:600; }
+  #s6 .box .en { font-size:13px; color:#7a7a76; }
+  #s6 .arrow { font-size:30px; color:#c8a24a; }
+  #s6 .note { margin-top:44px; font-size:16px; letter-spacing:.12em; color:#7a7a76; }
+  #s6 .note .mono { color:#9a9a96; }
+
+  #s7 { justify-content:flex-end; padding-bottom:64px; }
+  #s7 .warn { font-size:16px; line-height:1.95; color:#6a6a66; max-width:900px; text-align:center; }
+  #s7 .warn b { color:#9a9a96; font-weight:600; }
+
+  #s8 .big { font-size:110px; font-weight:800; letter-spacing:.04em; }
+  #s8 .url { margin-top:30px; font-size:28px; color:#9a9a96; }
+  #s8 .lic { margin-top:46px; font-size:17px; letter-spacing:.25em; color:#c8a24a; }
+
+  #progress { position:fixed; left:0; bottom:0; height:3px; background:#c8a24a; width:0; }
+  #tl { position:fixed; right:18px; bottom:14px; font-size:13px; color:#4a4a46; font-family:Consolas,monospace; }
+  #ghmark { position:fixed; left:20px; bottom:14px; width:20px; height:20px; opacity:.45; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hud">
+
+  <div class="scene" id="s1">
+    <div class="big"><span id="logo"></span><span class="cursor" id="cur">▌</span></div>
+    <div class="sub">守 夜 人 口 琴 · 自 动 演 奏</div>
+    <div class="hint">DELTA FORCE · VIGIL HARMONICA · ACCESSIBILITY</div>
+  </div>
+
+  <div class="scene" id="s2">
+    <div class="lead">让《三角洲行动》里的口琴 自己演奏</div>
+    <div class="rows">
+      <div>面向 <b>三角洲行动</b> 手游的无障碍自动演奏工具</div>
+      <div>在屏幕上模拟点击 守夜人口琴（Vigil Harmonica）的按键</div>
+    </div>
+    <div id="demo">
+      <div id="score"></div>
+      <div id="kb"></div>
+      <div id="democap">演示曲目 · 欢乐颂 Ode to Joy · 中音区 1=C5 · <span class="mono">BPM 100</span> · 实时模拟点击</div>
+    </div>
+  </div>
+
+  <div class="scene" id="s3">
+    <div class="cap">仓 库 地 址</div>
+    <div class="row2">
+      <div class="url mono">github.com/JeanWenzelCN/DF-NoctReed</div>
+      <div class="qr" id="qrbox"><svg   class="segno"><path fill="#e8e8e6" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#0a0a0a" d="M0 0.5h7m1 0h2m1 0h4m2 0h4m2 0h1m2 0h7m-33 1h1m5 0h1m3 0h1m1 0h3m1 0h2m2 0h1m1 0h1m3 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m3 0h3m1 0h1m1 0h3m1 0h3m3 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m4 0h1m1 0h2m7 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h3m4 0h2m1 0h1m2 0h1m1 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h2m1 0h1m6 0h1m5 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-23 1h2m2 0h2m5 0h1m1 0h1m-23 1h7m1 0h1m1 0h2m1 0h1m1 0h2m5 0h1m3 0h2m3 0h1m-33 1h2m1 0h1m3 0h1m3 0h2m3 0h1m1 0h4m1 0h1m2 0h2m1 0h2m1 0h1m-33 1h4m2 0h3m1 0h1m4 0h1m2 0h1m5 0h3m1 0h1m1 0h2m-32 1h6m3 0h1m5 0h1m3 0h1m1 0h2m1 0h1m1 0h1m1 0h4m-32 1h2m1 0h1m2 0h5m1 0h1m2 0h2m1 0h2m2 0h3m2 0h1m1 0h1m1 0h1m-32 1h1m2 0h1m1 0h1m1 0h1m3 0h2m1 0h4m4 0h1m3 0h1m2 0h1m1 0h2m-33 1h1m1 0h1m2 0h4m8 0h1m4 0h1m2 0h2m1 0h1m2 0h1m-32 1h1m1 0h2m1 0h1m1 0h3m2 0h3m1 0h1m3 0h2m3 0h3m1 0h2m-31 1h3m1 0h1m1 0h2m1 0h3m3 0h4m3 0h4m1 0h3m2 0h1m-33 1h1m1 0h1m1 0h2m3 0h1m1 0h2m3 0h1m1 0h1m1 0h2m1 0h1m2 0h2m1 0h2m1 0h1m-31 1h1m1 0h4m3 0h2m1 0h2m2 0h1m1 0h3m1 0h5m1 0h2m-32 1h4m1 0h1m6 0h1m2 0h1m3 0h3m3 0h8m-27 1h4m2 0h1m1 0h1m2 0h3m1 0h2m1 0h2m1 0h1m1 0h1m1 0h1m-32 1h1m1 0h4m3 0h9m1 0h6m7 0h1m-33 1h1m3 0h3m1 0h1m1 0h1m1 0h1m7 0h1m3 0h2m1 0h1m3 0h1m-32 1h1m1 0h3m3 0h1m2 0h2m2 0h1m4 0h4m1 0h2m1 0h5m-33 1h1m2 0h1m1 0h3m2 0h3m1 0h1m1 0h2m4 0h1m1 0h5m3 0h1m-25 1h3m1 0h3m1 0h1m2 0h1m1 0h1m1 0h2m3 0h1m1 0h2m-32 1h7m1 0h1m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h2m-32 1h1m5 0h1m1 0h2m1 0h5m1 0h2m1 0h2m1 0h2m3 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h2m3 0h1m2 0h2m1 0h1m2 0h1m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m1 0h2m1 0h1m3 0h3m1 0h2m2 0h3m2 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h3m1 0h2m1 0h1m1 0h1m3 0h2m1 0h2m-31 1h1m5 0h1m1 0h1m7 0h2m2 0h3m1 0h2m2 0h3m-31 1h7m2 0h4m1 0h1m7 0h3m2 0h1m3 0h1"/></svg></div>
+    </div>
+    <div class="chips">
+      <div class="chip"><b>Release</b> 直接下载安装</div>
+      <div class="chip"><b>源代码</b> 完全公开</div>
+      <div class="chip"><b>Issues</b> 问题反馈</div>
+    </div>
+  </div>
+
+  <div class="scene" id="s4">
+    <div class="top">
+      <div class="gpl">GPL v3</div>
+      <img class="badge" alt="GPLv3 Logo" src="data:image/png;base64,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">
+    </div>
+    <div class="tag">自 由 软 件</div>
+    <div class="freedoms">
+      <div class="free-card"><div class="n">0</div><div class="t">自由使用</div></div>
+      <div class="free-card"><div class="n">1</div><div class="t">自由复制</div></div>
+      <div class="free-card"><div class="n">2</div><div class="t">自由修改</div></div>
+      <div class="free-card"><div class="n">3</div><div class="t">自由再发布</div></div>
+    </div>
+    <div class="copyleft">
+      <div>修改后再发布的版本 <b>必须以同一许可证公开源代码</b></div>
+      <div>没有人可以把这段代码变成私有产品</div>
+    </div>
+  </div>
+
+  <div class="scene" id="s5">
+    <div class="cap">费 用</div>
+    <div class="free">完全免费 <span class="zero mono">¥0</span></div>
+    <div class="rows">
+      <div><span class="strike">内购</span><span class="strike">广告</span><span class="strike">付费功能</span></div>
+      <div>源代码在 GitHub 全部公开 可<b>自行构建验证</b></div>
+      <div>签名构建由 GitHub Actions 在云端完成 过程透明可查</div>
+    </div>
+  </div>
+
+  <div class="scene" id="s6">
+    <div class="cap">技 术 架 构</div>
+    <div class="flow">
+      <div class="box mono"><b>简谱解析</b><br><span class="en">score → tick 时制</span></div>
+      <div class="arrow">→</div>
+      <div class="box mono"><b>无障碍服务</b><br><span class="en">手势注入 · 节拍调度</span></div>
+      <div class="arrow">→</div>
+      <div class="box mono"><b>游戏画面</b><br><span class="en">口琴按键点击</span></div>
+    </div>
+    <div class="note"><span class="mono">Kotlin · Jetpack Compose · Material 3 · AccessibilityService · GitHub Actions CI</span></div>
+  </div>
+
+  <div class="scene" id="s7">
+    <div class="warn">
+      <b>风险提示</b>：本工具通过无障碍服务模拟点击。自动化操作可能违反游戏用户协议，存在账号处罚风险，请自行评估后使用。
+      本软件按原样提供，不附带任何担保。无障碍权限与悬浮窗权限为系统敏感权限，仅授权给你信任的软件。
+    </div>
+  </div>
+
+  <div class="scene" id="s8">
+    <div class="big">NoctReed</div>
+    <div class="url mono">github.com/JeanWenzelCN/DF-NoctReed</div>
+    <div class="lic">GPL-3.0 LICENSE · FREE AS IN FREEDOM</div>
+  </div>
+
+  <svg id="ghmark" viewBox="0 0 16 16" fill="#e8e8e6"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+  <div id="progress"></div>
+  <div id="tl">00:00 / 01:30</div>
+</div>
+
+<script>
+const W=1280, H=720;
+const app = new PIXI.Application({ width:W, height:H, backgroundColor:0x0a0a0a, antialias:true });
+document.getElementById('stage').appendChild(app.view);
+
+const dots = new PIXI.Container(); app.stage.addChild(dots);
+for(let x=32;x<W;x+=64) for(let y=32;y<H;y+=64){
+  const g=new PIXI.Graphics(); g.beginFill(0x1c1c1a).drawRect(0,0,2,2).endFill();
+  g.x=x; g.y=y; dots.addChild(g);
+}
+
+const dustN=42, dust=[];
+const dustC=new PIXI.Container(); app.stage.addChild(dustC);
+for(let i=0;i<dustN;i++){
+  const g=new PIXI.Graphics();
+  g.beginFill(i%7===0?0xc8a24a:0x3a3a38, i%7===0?0.8:0.55).drawCircle(0,0,i%7===0?2.2:1.5).endFill();
+  g.x=Math.random()*W; g.y=Math.random()*H;
+  dustC.addChild(g);
+  dust.push({g, vx:(Math.random()-.5)*10, vy:-6-Math.random()*14, ph:Math.random()*6.28});
+}
+
+const bars=[]; const barsC=new PIXI.Container(); barsC.x=W/2; barsC.y=H/2+290; app.stage.addChild(barsC);
+for(let i=0;i<48;i++){
+  const g=new PIXI.Graphics(); barsC.addChild(g);
+  bars.push({g, col:(i%8===0)?0xc8a24a:0x3a3a38, x:(i-24)*15});
+}
+
+const fxC=new PIXI.Container(); app.stage.addChild(fxC);
+const parts=[], rings=[];
+function spawnNoteFx(x,y,label){
+  const t=new PIXI.Text(label,{fontFamily:'Consolas,monospace',fontSize:26,fill:0xc8a24a,fontWeight:'700'});
+  t.anchor.set(.5); t.x=x; t.y=y; fxC.addChild(t);
+  parts.push({g:t, vy:-70, life:1.4, age:0});
+  const r=new PIXI.Graphics(); r.lineStyle(2,0xc8a24a,0.9).drawCircle(0,0,8);
+  r.x=x; r.y=y; fxC.addChild(r);
+  rings.push({g:r, age:0, life:0.6});
+}
+
+const sweep=new PIXI.Graphics(); sweep.beginFill(0xc8a24a,0.06).drawRect(0,0,90,H).endFill();
+sweep.x=-120; app.stage.addChild(sweep);
+let sweepT=-1;
+
+const T=[ {id:'s1',a:0,b:8}, {id:'s2',a:8,b:36}, {id:'s3',a:36,b:46}, {id:'s4',a:46,b:62},
+          {id:'s5',a:62,b:72}, {id:'s6',a:72,b:82}, {id:'s7',a:82,b:86.5}, {id:'s8',a:86.5,b:90} ];
+const DUR=90, F=0.8;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+let lastScene=-1;
+
+const DEG_W={1:0,2:1,3:2,4:3,5:4,6:5,7:6};
+const kb=document.getElementById('kb');
+const wEls=[], bEls={};
+for(let i=0;i<7;i++){
+  const k=document.createElement('div'); k.className='wkey'; k.style.left=(i*80)+'px';
+  k.textContent=(i+1); kb.appendChild(k); wEls.push(k);
+}
+[['#1',0],['#2',1],['#4',3],['#5',4],['#6',5]].forEach(([lb,gi])=>{
+  const k=document.createElement('div'); k.className='bkey'; k.style.left=(gi*80+52)+'px';
+  k.textContent=lb; kb.appendChild(k); bEls[lb]=k;
+});
+
+const MELODY=[3,3,4,5, 5,4,3,2, 1,1,2,3, 3,2,2];
+const BEATS =[1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,2];
+const scoreEl=document.getElementById('score');
+const tokEls=[];
+MELODY.forEach((d,i)=>{
+  const s=document.createElement('span'); s.className='tok'; s.textContent=d;
+  scoreEl.appendChild(s); tokEls.push(s);
+  if(i===3||i===7||i===11){ const b=document.createElement('span'); b.className='bar'; b.textContent='|'; scoreEl.appendChild(b); }
+  if(i===14){ const m=document.createElement('span'); m.className='tok'; m.textContent='-'; scoreEl.appendChild(m); }
+});
+const BPM=100, BEAT=60/BPM, T_PLAY=15.5;
+const noteTimes=[];
+{ let acc=T_PLAY; BEATS.forEach((b,i)=>{ noteTimes.push({t:acc, d:b*BEAT, deg:MELODY[i]}); acc+=b*BEAT; }); }
+let noteIdx=0;
+
+function keyCenter(el){
+  const r=el.getBoundingClientRect();
+  const sx=W/window.innerWidth;
+  return [ (r.left+r.width/2)*sx, r.top*(H/window.innerHeight) ];
+}
+
+let AC=null, master=null;
+function ensureAudio(){
+  if(AC) { if(AC.state==='suspended') AC.resume(); return; }
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=0.8; master.connect(AC.destination);
+  const padG=AC.createGain(); padG.gain.value=0.05; padG.connect(master);
+  [110,164.81].forEach(f=>{ const o=AC.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+    const fl=AC.createBiquadFilter(); fl.type='lowpass'; fl.frequency.value=420;
+    o.connect(fl); fl.connect(padG); o.start(); });
+}
+window.__ensureAudio=ensureAudio;
+function tone(deg,dur){
+  if(!AC) return;
+  const SEMI={1:0,2:2,3:4,4:5,5:7,6:9,7:11};
+  const f=523.25*Math.pow(2,SEMI[deg]/12);
+  const t0=AC.currentTime;
+  const o=AC.createOscillator(); o.type='triangle'; o.frequency.value=f;
+  const o2=AC.createOscillator(); o2.type='sine'; o2.frequency.value=f*2;
+  const g=AC.createGain(); g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(0.5,t0+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+Math.max(0.45,dur*0.85));
+  const g2=AC.createGain(); g2.gain.value=0.12; o2.connect(g2); g2.connect(g);
+  o.connect(g); g.connect(master); o.start(t0); o.stop(t0+dur+0.1); o2.start(t0); o2.stop(t0+dur+0.1);
+}
+function whoosh(){
+  if(!AC) return;
+  const t0=AC.currentTime, len=0.5, n=AC.sampleRate*len;
+  const buf=AC.createBuffer(1,n,AC.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+  const src=AC.createBufferSource(); src.buffer=buf;
+  const f=AC.createBiquadFilter(); f.type='bandpass'; f.Q.value=1.2;
+  f.frequency.setValueAtTime(300,t0); f.frequency.exponentialRampToValueAtTime(3200,t0+len);
+  const g=AC.createGain(); g.gain.value=0.25;
+  src.connect(f); f.connect(g); g.connect(master); src.start(t0);
+}
+
+const FULL='NoctReed'; const logoEl=document.getElementById('logo'); const curEl=document.getElementById('cur');
+const tl=document.getElementById('tl'), prog=document.getElementById('progress');
+let startT=null, manualT=null;
+window.__seek=(s)=>{ manualT=s; step(s); };
+window.__elapsed=0;
+
+function fireNote(ni){
+  const n=noteTimes[ni];
+  const el=wEls[DEG_W[n.deg]];
+  el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'), Math.min(300, n.d*800));
+  tokEls[ni].classList.add('on');
+  const [kx,ky]=keyCenter(el);
+  spawnNoteFx(kx, ky-14, String(n.deg));
+  tone(n.deg, n.d);
+  barsEnergy=1;
+}
+
+let barsEnergy=0;
+function step(t){
+  window.__elapsed=t;
+  T.forEach((s,idx)=>{
+    const el=document.getElementById(s.id);
+    const inn=ease(Math.min(1,Math.max(0,(t-s.a)/F)));
+    const out=ease(Math.min(1,Math.max(0,(s.b-t)/F)));
+    const o=Math.min(inn,out);
+    el.style.opacity=o;
+    el.style.transform='translateY('+((1-inn)*26)+'px)';
+    if(o>0.5 && lastScene!==idx){ lastScene=idx; sweepT=t; whoosh(); }
+  });
+  if(sweepT>=0){ const p=(t-sweepT)/0.9; sweep.x = p<1 ? -120+p*(W+240) : -120; }
+
+  if(t<8){
+    const n=Math.min(FULL.length, Math.floor(Math.max(0,t-0.4)*4.2));
+    logoEl.textContent=FULL.slice(0,n);
+    curEl.style.visibility=(Math.floor(t*2.4)%2===0)?'visible':'hidden';
+  }
+
+  if(t>=8 && t<36){
+    while(noteIdx<noteTimes.length && t>=noteTimes[noteIdx].t){ fireNote(noteIdx); noteIdx++; }
+  } else if(t>=36 && noteIdx>0){
+    noteIdx=0; tokEls.forEach(e=>e.classList.remove('on'));
+  }
+
+  dust.forEach(p=>{
+    p.g.x+=p.vx/60; p.g.y+=p.vy/60;
+    p.g.alpha=0.35+0.3*Math.sin(t*0.9+p.ph);
+    if(p.g.y<-6){ p.g.y=H+6; p.g.x=Math.random()*W; }
+    if(p.g.x<-6) p.g.x=W+6; if(p.g.x>W+6) p.g.x=-6;
+  });
+
+  barsEnergy=Math.max(0,barsEnergy-0.012);
+  const beat=(t*1.5)%1;
+  bars.forEach((b,i)=>{
+    const base=18+70*Math.abs(Math.sin(t*1.9+i*0.55))*(0.4+0.6*Math.exp(-beat*3));
+    const amp=base*(1+barsEnergy*1.6*Math.abs(Math.sin(i*1.3+t*9)));
+    b.g.clear(); b.g.beginFill(b.col).drawRect(b.x, -amp/2, 6, amp).endFill();
+  });
+
+  for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.age+=1/60;
+    p.g.y+=p.vy/60; p.g.alpha=Math.max(0,1-p.age/p.life);
+    if(p.age>=p.life){ fxC.removeChild(p.g); p.g.destroy(); parts.splice(i,1); } }
+  for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.age+=1/60;
+    const k=r.age/r.life; r.g.scale.set(1+k*6); r.g.alpha=Math.max(0,0.9*(1-k));
+    if(k>=1){ fxC.removeChild(r.g); r.g.destroy(); rings.splice(i,1); } }
+
+  const mm=String(Math.floor(t/60)).padStart(2,'0'), ss=String(Math.floor(t%60)).padStart(2,'0');
+  tl.textContent=mm+':'+ss+' / 01:30';
+  prog.style.width=(t/DUR*100)+'%';
+}
+
+app.ticker.add(()=>{
+  if(manualT!=null) return;
+  if(startT==null) startT=performance.now();
+  step(Math.min(DUR,(performance.now()-startT)/1000));
+});
+</script>
+</body>
+</html>

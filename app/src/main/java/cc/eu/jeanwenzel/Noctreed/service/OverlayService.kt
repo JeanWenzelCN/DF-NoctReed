@@ -271,6 +271,10 @@ class OverlayService : Service() {
         btnStop = makeButton(R.drawable.ic_stop, "停止演奏") { OverlayController.stop() }
         btnLibrary = makeButton(R.drawable.ic_library, "切换乐谱") { showScorePicker() }
         btnCalibrate = makeButton(R.drawable.ic_tune, "校准按键") {
+            if (isPortrait) {
+                android.widget.Toast.makeText(this, "竖屏不可校准，请切换到横屏", android.widget.Toast.LENGTH_SHORT).show()
+                return@makeButton
+            }
             if (calibrating) {
                 // 校准中点击 = 取消校准
                 calibrating = false
@@ -390,23 +394,25 @@ class OverlayService : Service() {
                 btnCalibrate.clearColorFilter()
             }
             pendingCalibrate -> {
-                status.text = "再点一次开始校准，长按取消"
+                status.text = "再点一次开始，长按取消"
                 btnCalibrate.setColorFilter(ACCENT)
             }
             else -> {
                 val accOn = HarmonicaAccessibilityService.isEnabled()
                 status.text = when {
                     !accOn -> "缺少无障碍权限"
-                    isPortrait -> "竖屏不可演奏，请切换到横屏"
+                    isPortrait -> "请切换到横屏"
                     else -> when (OverlayController.playState.value) {
                         PlayState.PLAYING -> "演奏中…"
                         PlayState.PAUSED -> "已暂停"
-                        PlayState.IDLE -> if (store.allCalibrated()) "就绪 — 可开始演奏" else "未校准，请先校准按键"
+                        PlayState.IDLE -> if (store.allCalibrated()) "就绪" else "未校准"
                     }
                 }
                 btnCalibrate.clearColorFilter()
             }
         }
+        btnCalibrate.isEnabled = !isPortrait
+        btnCalibrate.alpha = if (btnCalibrate.isEnabled) 1f else 0.4f
         // 演奏/暂停按钮可用性：用 isEnabled 真实禁用（修复视觉灰但仍可点的缺陷）
         val st = OverlayController.playState.value
         val playing = st == PlayState.PLAYING

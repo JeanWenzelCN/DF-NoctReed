@@ -189,7 +189,7 @@ fun MainScreen() {
             step = "第 3 步",
             title = "按键校准",
             done = calibrated,
-            description = "启动悬浮窗后进入游戏守夜人口琴界面，点悬浮窗「校准」并按提示点击按键。可随时重新校准。"
+            description = "横屏进入游戏口琴界面后，点悬浮窗「校准」，按提示依次点击 12 个按键。",
         ) {
             Button(
                 enabled = overlayOn,
@@ -197,7 +197,7 @@ fun MainScreen() {
                     OverlayService.start(context)
                     Toast.makeText(
                         context,
-                        "悬浮窗已启动，请进入游戏后点悬浮窗上的「校准」",
+                        "悬浮窗已启动，请在横屏界面点「校准」",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -336,8 +336,8 @@ fun MainScreen() {
                     tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "流程：开启无障碍 → 授权悬浮窗 → 进入游戏守夜人口琴界面 → 在悬浮窗上完成校准 → 用悬浮窗控制演奏。\n\n" +
-                        "MIDI 导入要求：单旋律、无和弦，音域须在 C4 — ♯C7 之间。",
+                    "流程：开启无障碍 → 授权悬浮窗 → 横屏校准 → 悬浮窗演奏。\n\n" +
+                        "MIDI 导入：单旋律、无和弦，音域 C4—♯C7。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -518,23 +518,24 @@ fun GuideCard(
     action: @Composable () -> Unit
 ) {
     ElevatedCard {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (done) Icons.Default.CheckCircle else Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = if (done) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.error
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("$step · $title", style = MaterialTheme.typography.titleMedium)
-            }
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+            Icon(
+                if (done) Icons.Default.CheckCircle else Icons.Default.Warning,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = if (done) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.error
             )
-            if (!done) action()
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("$step · $title", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                                if (!done) action()
+            }
         }
     }
 }

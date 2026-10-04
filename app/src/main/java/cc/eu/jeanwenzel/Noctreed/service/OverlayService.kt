@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class OverlayService : Service() {
@@ -271,21 +272,34 @@ class OverlayService : Service() {
         btnLibrary = makeButton(R.drawable.ic_library, "切换乐谱") { showScorePicker() }
         btnCalibrate = makeButton(R.drawable.ic_tune, "校准按键") {
             if (calibrating) {
-                // 校准中再点一次 = 取消校准
+                // 校准中点击 = 取消校准
                 calibrating = false
                 pendingCalibrate = false
                 refreshPanel()
-                return@makeButton
-            }
-            if (!pendingCalibrate) {
-                // 第一步：进入待确认状态，防误触
+            } else if (pendingCalibrate) {
+                // 待确认态点击 = 确认，开始校准
+                pendingCalibrate = false
+                startCalibration()
+            } else {
+                // 第一次点击：进入待确认态，5 秒内未确认自动取消
                 pendingCalibrate = true
                 refreshPanel()
-                return@makeButton
+                serviceScope.launch {
+                    delay(5000)
+                    if (pendingCalibrate && !calibrating) {
+                        pendingCalibrate = false
+                        refreshPanel()
+                    }
+                }
             }
-            // 第二步：确认，开始校准
-            pendingCalibrate = false
-            startCalibration()
+        }
+        // 待确认态长按 = 取消（防误触后可退出）
+        btnCalibrate.setOnLongClickListener {
+            if (pendingCalibrate && !calibrating) {
+                pendingCalibrate = false
+                refreshPanel()
+                true
+            } else false
         }
         ctrlRow.addView(btnPlay)
         ctrlRow.addView(btnPause)
@@ -376,7 +390,7 @@ class OverlayService : Service() {
                 btnCalibrate.clearColorFilter()
             }
             pendingCalibrate -> {
-                status.text = "再点一次开始校准"
+                status.text = "再点一次开始校准，长按取消"
                 btnCalibrate.setColorFilter(ACCENT)
             }
             else -> {

@@ -88,6 +88,8 @@ fun MainScreen() {
     var importError by remember { mutableStateOf<String?>(null) }
     // 独立乐谱库界面开关
     var showLibrary by remember { mutableStateOf(false) }
+    // 清除校准确认弹窗
+    var showClearCalConfirm by remember { mutableStateOf(false) }
 
     // txt / midi 导入（SAF）
     val importLauncher = rememberLauncherForActivityResult(
@@ -214,11 +216,7 @@ fun MainScreen() {
                 ) { Text("启动校准引导", maxLines = 1, softWrap = false) }
                 if (calibrated) {
                     OutlinedButton(
-                        onClick = {
-                            store.clear()
-                            calibrated = false
-                            Toast.makeText(context, "已清除校准信息", Toast.LENGTH_SHORT).show()
-                        }
+                        onClick = { showClearCalConfirm = true }
                     ) { Text("清除校准信息", maxLines = 1, softWrap = false) }
                 }
             }
@@ -397,6 +395,25 @@ fun MainScreen() {
         )
     }
 
+    // —— 清除校准确认 ——
+    if (showClearCalConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearCalConfirm = false },
+            title = { Text("清除校准信息") },
+            text = { Text("清除后需重新完成按键校准才能演奏。确定清除吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    store.clear()
+                    calibrated = false
+                    showClearCalConfirm = false
+                    Toast.makeText(context, "已清除校准信息", Toast.LENGTH_SHORT).show()
+                }) { Text("清除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCalConfirm = false }) { Text("取消") }
+            }
+        )
+    }
     // —— 独立乐谱库界面 ——
     if (showLibrary) {
         AlertDialog(

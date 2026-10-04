@@ -85,7 +85,8 @@ class HarmonicaAccessibilityService : AccessibilityService() {
             var halfStep = false
             var lastPhrase = -1
 
-            for (event in events) {
+            for (ei in events.indices) {
+                val event = events[ei]
                 awaitIfPaused()
                 // 乐句变化时上报悬浮窗（含歌词）
                 val pi = event.phraseIndex
@@ -103,7 +104,8 @@ class HarmonicaAccessibilityService : AccessibilityService() {
                     }
                     is ScoreEvent.Rest -> delayInterruptibly(tickMsNow(event.ticks))
                     is ScoreEvent.Note -> {
-                        // 维度一：音区（互斥），已在目标状态则跳过
+                        // 状态切换（音区/半音）已在上一音符的尾部间隙内完成；
+                        // 首个音符（或休止符后的首个音符）在此同步切换
                         if (event.register != register) {
                             val key = when (event.register) {
                                 Register.NATURAL -> Keys.NATURAL
@@ -114,7 +116,6 @@ class HarmonicaAccessibilityService : AccessibilityService() {
                             register = event.register
                             delay(switchGap)
                         }
-                        // 维度二：半音（独立开关）
                         if (event.halfStep != halfStep) {
                             doTapKey(Keys.HALF_STEP)
                             halfStep = event.halfStep
@@ -131,7 +132,35 @@ class HarmonicaAccessibilityService : AccessibilityService() {
                             (noteMs - 30L).coerceIn(30L, 60L)
                         }
                         doTapKey(noteKey, holdMs)
-                        delayInterruptibly(noteMs - holdMs)
+                        // 提前查找下一个音符所需的目标状态，把切换（半音/音区）
+                        // 挪进本音符松手后的间隙里完成，音符时值不再被切换开销侵占
+                        var nTarget: ScoreEvent.Note? = null
+                        for (j in ei + 1 until events.size) {
+                            val ne = events[j]
+                            if (ne is ScoreEvent.Note) { nTarget = ne; break }
+                            if (ne is ScoreEvent.Rest) break
+                        }
+                        var remaining = noteMs - holdMs
+                        if (nTarget != null) {
+                            if (nTarget.halfStep != halfStep && remaining >= switchGap) {
+                                doTapKey(Keys.HALF_STEP)
+                                halfStep = nTarget.halfStep
+                                delay(switchGap)
+                                remaining -= switchGap
+                            }
+                            if (nTarget.register != register && remaining >= switchGap) {
+                                val key = when (nTarget.register) {
+                                    Register.NATURAL -> Keys.NATURAL
+                                    Register.SHARP -> Keys.SHARP
+                                    Register.FLAT -> Keys.FLAT
+                                }
+                                doTapKey(key)
+                                register = nTarget.register
+                                delay(switchGap)
+                                remaining -= switchGap
+                            }
+                        }
+                        delayInterruptibly(remaining)
                     }
                 }
             }

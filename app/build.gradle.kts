@@ -12,8 +12,8 @@ android {
         applicationId = "cc.eu.jeanwenzel.Noctreed"
         minSdk = 31
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.3rc2"
+        versionCode = 7
+        versionName = "1.4"
     }
 
     signingConfigs {

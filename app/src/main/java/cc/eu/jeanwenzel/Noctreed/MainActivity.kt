@@ -206,13 +206,13 @@ fun MainScreen() {
 
         // —— 乐谱与演奏 ——
         ElevatedCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("乐谱演奏", style = MaterialTheme.typography.titleMedium)
-                }
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("乐谱演奏", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "支持数字简谱（含高低音点、升降号、延音线），可直接粘贴或从乐谱库 / MIDI 导入。",
                     style = MaterialTheme.typography.bodySmall,
@@ -326,9 +326,9 @@ fun MainScreen() {
                     enabled = overlayOn,
                     onClick = { OverlayService.start(context) }
                 ) { Text("显示悬浮窗") }
+                }
             }
         }
-
         // —— 说明 ——
         ElevatedCard {
             Row(Modifier.padding(16.dp)) {
@@ -346,27 +346,25 @@ fun MainScreen() {
         // —— 项目仓库（独立区块，置底） ——
         Spacer(Modifier.height(16.dp))
         ElevatedCard {
-            Column(Modifier.padding(16.dp)) {
-                Text("项目仓库", style = MaterialTheme.typography.titleSmall)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "源代码、更新与问题反馈请访问 GitHub。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/JeanWenzelCN/Delta-Force-NoctReed")))
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("打开 GitHub 仓库") }
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+                Icon(painterResource(R.drawable.ic_library), contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("项目仓库", style = MaterialTheme.typography.titleSmall)
+                    Text("源代码、更新与问题反馈请访问 GitHub。", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/JeanWenzelCN/DF-NoctReed"))) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("打开 GitHub 仓库") }
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
     }
-
     // —— 导入失败弹窗 ——
     importError?.let { msg ->
         AlertDialog(

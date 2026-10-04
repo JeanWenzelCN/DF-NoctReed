@@ -184,28 +184,48 @@ fun MainScreen() {
             }) { Text("去授权") }
         }
 
-        // —— 第三步：校准（引导式，不再点击即开始）——
+        // —— 第三步：校准（完成后须先清除才能重校）——
         GuideCard(
             step = "第 3 步",
             title = "按键校准",
             done = calibrated,
             description = "横屏进入游戏口琴界面后，点悬浮窗「校准」，按提示依次点击 12 个按键。",
+            showActionWhenDone = true,
         ) {
-            Button(
-                enabled = overlayOn,
-                onClick = {
-                    OverlayService.start(context)
-                    Toast.makeText(
-                        context,
-                        "悬浮窗已启动，请在横屏界面点「校准」",
-                        Toast.LENGTH_LONG
-                    ).show()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = overlayOn,
+                    onClick = {
+                        if (calibrated) {
+                            Toast.makeText(context, "请先清除校准信息", Toast.LENGTH_SHORT).show()
+                        } else {
+                            OverlayService.start(context)
+                            Toast.makeText(
+                                context,
+                                "悬浮窗已启动，请在横屏界面点「校准」",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    },
+                    colors = if (calibrated) ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ) else ButtonDefaults.buttonColors()
+                ) { Text("启动校准引导", maxLines = 1, softWrap = false) }
+                if (calibrated) {
+                    OutlinedButton(
+                        onClick = {
+                            store.clear()
+                            calibrated = false
+                            Toast.makeText(context, "已清除校准信息", Toast.LENGTH_SHORT).show()
+                        }
+                    ) { Text("清除校准信息", maxLines = 1, softWrap = false) }
                 }
-            ) { Text(if (calibrated) "重新校准" else "启动校准引导") }
+            }
         }
 
         // —— 乐谱与演奏 ——
-        ElevatedCard {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null,
                     modifier = Modifier.size(24.dp),
@@ -247,7 +267,7 @@ fun MainScreen() {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = {
                         importLauncher.launch(arrayOf("*/*"))
-                    }) { Text("导入乐谱 / MIDI") }
+                    }) { Text("导入乐谱 / MIDI", maxLines = 1, softWrap = false) }
                     OutlinedButton(
                         enabled = scoreText.isNotBlank(),
                         onClick = {
@@ -255,7 +275,7 @@ fun MainScreen() {
                                 else "乐谱 ${savedScores.size + 1}"
                             showSaveDialog = true
                         }
-                    ) { Text("保存乐谱") }
+                    ) { Text("保存乐谱", maxLines = 1, softWrap = false) }
                 }
 
                 // 乐谱库入口：跳转独立界面
@@ -308,18 +328,18 @@ fun MainScreen() {
                             OverlayController.updateScoreName(scoreName.ifBlank { "未命名乐谱" })
                             OverlayController.start(context)
                         }
-                    ) { Text("开始") }
+                    ) { Text("开始", maxLines = 1, softWrap = false) }
                     OutlinedButton(
                         enabled = playing,
                         onClick = {
                             if (playState == PlayState.PLAYING) OverlayController.pause()
                             else OverlayController.resume()
                         }
-                    ) { Text(if (playState == PlayState.PAUSED) "继续" else "暂停") }
+                    ) { Text(if (playState == PlayState.PAUSED) "继续" else "暂停", maxLines = 1, softWrap = false) }
                     OutlinedButton(
                         enabled = playing,
                         onClick = { OverlayController.stop() }
-                    ) { Text("停止") }
+                    ) { Text("停止", maxLines = 1, softWrap = false) }
                 }
 
                 OutlinedButton(
@@ -330,7 +350,7 @@ fun MainScreen() {
             }
         }
         // —— 说明 ——
-        ElevatedCard {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(16.dp)) {
                 Icon(Icons.Default.Info, contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary)
@@ -345,7 +365,7 @@ fun MainScreen() {
         }
         // —— 项目仓库（独立区块，置底） ——
         Spacer(Modifier.height(16.dp))
-        ElevatedCard {
+        ElevatedCard(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
                 Icon(painterResource(R.drawable.ic_library), contentDescription = null,
                     modifier = Modifier.size(24.dp),
@@ -513,9 +533,10 @@ fun GuideCard(
     title: String,
     done: Boolean,
     description: String,
+    showActionWhenDone: Boolean = false,
     action: @Composable () -> Unit
 ) {
-    ElevatedCard {
+    ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
             Icon(
                 if (done) Icons.Default.CheckCircle else Icons.Default.Warning,
@@ -532,7 +553,7 @@ fun GuideCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                                if (!done) action()
+                                if (!done || showActionWhenDone) action()
             }
         }
     }

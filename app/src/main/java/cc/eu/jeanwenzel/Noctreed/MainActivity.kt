@@ -132,9 +132,15 @@ fun MainScreen() {
             accessibilityOn = HarmonicaAccessibilityService.isEnabled()
             overlayOn = Settings.canDrawOverlays(context)
             hasWss = AccessibilityGranter.hasWriteSecureSettings(context)
+            // 已持有 WRITE_SECURE_SETTINGS 但无障碍被系统关闭时，自动重新写入，免手动点击
+            if (hasWss && !accessibilityOn) {
+                if (AccessibilityGranter.tryEnable(context)) {
+                    accessibilityOn = HarmonicaAccessibilityService.isEnabled()
+                }
+            }
             calibrated = store.allCalibrated()
             // 悬浮窗内切换乐谱后，回到主界面时同步显示
-            val ctrlScore = OverlayController.score.value
+                        val ctrlScore = OverlayController.score.value
             if (ctrlScore != scoreText) scoreText = ctrlScore
             val ctrlBpm = OverlayController.bpm.value
             if (!bpmEditing && ctrlBpm.toString() != bpmText) bpmText = ctrlBpm.toString()

@@ -44,20 +44,20 @@ class HarmonicaAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    /** 按住屏幕坐标 durationMs 毫秒（短触即单击） */
-    private suspend fun tap(x: Float, y: Float, durationMs: Long = 60): Boolean = suspendCancellableCoroutine { cont ->
-        val path = Path().apply { moveTo(x, y) }
-        val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs))
-            .build()
-        dispatchGesture(gesture, object : GestureResultCallback() {
+    /** 单次手势同时按下：taps 为短触的切换键（音区/半音），holdPos 为长按的音符键。
+     *  所有 stroke 均从 t=0 开始，同帧下发，彻底消除切换与音符之间的串行延迟。 */
+    private suspend fun tapCombo(taps: List<Pair<Float, Float>>, holdPos: Pair<Float, Float>, holdMs: Long): Boolean = suspendCancellableCoroutine { cont ->
+        val b = GestureDescription.Builder()
+        for (pt in taps) {
+            val path = Path().apply { moveTo(pt.first, pt.second) }
+            b.addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+        }
+        val hp = Path().apply { moveTo(holdPos.first, holdPos.second) }
+        b.addStroke(GestureDescription.StrokeDescription(hp, 0, holdMs))
+        dispatchGesture(b.build(), object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) { cont.resume(true) }
             override fun onCancelled(gestureDescription: GestureDescription?) { cont.resume(false) }
         }, null)
-    }
-    private suspend fun doTapKey(key: String, durationMs: Long = 60): Boolean {
-        val pos = store.get(key) ?: return false
-        return tap(pos.first, pos.second, durationMs)
     }
 
     /** 开始演奏 */
@@ -77,7 +77,6 @@ class HarmonicaAccessibilityService : AccessibilityService() {
         fun beatMsNow(): Long = (60000L / OverlayController.bpm.value).coerceAtLeast(100L)
         // 事件时值统一为 tick（1 拍 = 16 tick），换算成毫秒
         fun tickMsNow(ticks: Int): Long = beatMsNow() * ticks / ScoreParser.TICKS_PER_BEAT
-        val switchGap = 120L // 状态切换与音符之间的间隔
         paused = false
 
         playJob = scope.launch {
@@ -104,22 +103,21 @@ class HarmonicaAccessibilityService : AccessibilityService() {
                     }
                     is ScoreEvent.Rest -> delayInterruptibly(tickMsNow(event.ticks))
                     is ScoreEvent.Note -> {
-                        // 状态切换（音区/半音）已在上一音符的尾部间隙内完成；
-                        // 首个音符（或休止符后的首个音符）在此同步切换
+                        // 切换键（音区/半音）与音符键合并进同一次 dispatchGesture，
+                        // 所有 stroke 从 t=0 同时按下，切换不再产生任何串行延迟与时值侵占
+                        val switches = mutableListOf<Pair<Float, Float>>()
                         if (event.register != register) {
                             val key = when (event.register) {
                                 Register.NATURAL -> Keys.NATURAL
                                 Register.SHARP -> Keys.SHARP
                                 Register.FLAT -> Keys.FLAT
                             }
-                            doTapKey(key)
+                            store.get(key)?.let { switches.add(it) }
                             register = event.register
-                            delay(switchGap)
                         }
                         if (event.halfStep != halfStep) {
-                            doTapKey(Keys.HALF_STEP)
+                            store.get(Keys.HALF_STEP)?.let { switches.add(it) }
                             halfStep = event.halfStep
-                            delay(switchGap)
                         }
                         // 音符键：长按，按住时长约为音长的 90%（长音保持按下，短音近似点触）
                         val noteKey = if (event.degree == 8) "i" else event.degree.toString()
@@ -131,36 +129,11 @@ class HarmonicaAccessibilityService : AccessibilityService() {
                         } else {
                             (noteMs - 30L).coerceIn(30L, 60L)
                         }
-                        doTapKey(noteKey, holdMs)
-                        // 提前查找下一个音符所需的目标状态，把切换（半音/音区）
-                        // 挪进本音符松手后的间隙里完成，音符时值不再被切换开销侵占
-                        var nTarget: ScoreEvent.Note? = null
-                        for (j in ei + 1 until events.size) {
-                            val ne = events[j]
-                            if (ne is ScoreEvent.Note) { nTarget = ne; break }
-                            if (ne is ScoreEvent.Rest) break
+                        val notePos = store.get(noteKey)
+                        if (notePos != null) {
+                            tapCombo(switches, notePos, holdMs)
                         }
-                        var remaining = noteMs - holdMs
-                        if (nTarget != null) {
-                            if (nTarget.halfStep != halfStep && remaining >= switchGap) {
-                                doTapKey(Keys.HALF_STEP)
-                                halfStep = nTarget.halfStep
-                                delay(switchGap)
-                                remaining -= switchGap
-                            }
-                            if (nTarget.register != register && remaining >= switchGap) {
-                                val key = when (nTarget.register) {
-                                    Register.NATURAL -> Keys.NATURAL
-                                    Register.SHARP -> Keys.SHARP
-                                    Register.FLAT -> Keys.FLAT
-                                }
-                                doTapKey(key)
-                                register = nTarget.register
-                                delay(switchGap)
-                                remaining -= switchGap
-                            }
-                        }
-                        delayInterruptibly(remaining)
+                        delayInterruptibly(noteMs - holdMs)
                     }
                 }
             }

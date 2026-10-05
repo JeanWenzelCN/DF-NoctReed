@@ -12,8 +12,8 @@ android {
         applicationId = "cc.eu.jeanwenzel.Noctreed"
         minSdk = 31
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.6"
+        versionCode = 10
+        versionName = "1.7"
     }
 
     signingConfigs {
@@ -32,17 +32,28 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             val releaseSigning = signingConfigs.findByName("release")
             if (releaseSigning?.storeFile != null) {
                 signingConfig = releaseSigning
             }
         }
     }
-
-    buildFeatures {
-        compose = true
+    // 按 CPU 架构拆分 APK，减小单个包体积
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
     }
+    buildFeatures { compose = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -69,8 +80,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
-
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-
+    // Shizuku：用于以 shell 身份授予 WRITE_SECURE_SETTINGS，实现永久开启无障碍
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -2,8 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 普通安装不会授予；可通过 adb 或 Shizuku(Sui) 授予，用于自动永久开启无障碍 -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Shizuku API 权限声明 -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
     <application
         android:label="@string/app_name"
@@ -37,5 +41,13 @@
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+        <!-- Shizuku Provider，用于与本应用绑定 -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 </manifest>

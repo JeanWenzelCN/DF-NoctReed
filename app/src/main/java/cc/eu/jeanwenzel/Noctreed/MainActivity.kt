@@ -28,7 +28,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cc.eu.jeanwenzel.Noctreed.data.AccessibilityGranter
 import cc.eu.jeanwenzel.Noctreed.data.CalibrationStore
+import cc.eu.jeanwenzel.Noctreed.data.ShizukuGranter
 import cc.eu.jeanwenzel.Noctreed.data.ScoreStore
 import cc.eu.jeanwenzel.Noctreed.score.MidiImporter
 import cc.eu.jeanwenzel.Noctreed.score.ScoreParser
@@ -66,6 +68,7 @@ fun MainScreen() {
     val context = LocalContext.current
     var accessibilityOn by remember { mutableStateOf(HarmonicaAccessibilityService.isEnabled()) }
     var overlayOn by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var hasWss by remember { mutableStateOf(AccessibilityGranter.hasWriteSecureSettings(context)) }
     val store = remember { CalibrationStore(context) }
     var calibrated by remember { mutableStateOf(store.allCalibrated()) }
 
@@ -128,6 +131,7 @@ fun MainScreen() {
         while (true) {
             accessibilityOn = HarmonicaAccessibilityService.isEnabled()
             overlayOn = Settings.canDrawOverlays(context)
+            hasWss = AccessibilityGranter.hasWriteSecureSettings(context)
             calibrated = store.allCalibrated()
             // 悬浮窗内切换乐谱后，回到主界面时同步显示
             val ctrlScore = OverlayController.score.value
@@ -166,9 +170,46 @@ fun MainScreen() {
             done = accessibilityOn,
             description = "在系统设置中找到「NoctReed」并开启。"
         ) {
-            Button(onClick = {
-                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }) { Text("去开启") }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }) { Text("去开启") }
+                if (hasWss) {
+                    Button(onClick = {
+                        val ok = AccessibilityGranter.tryEnable(context)
+                        Toast.makeText(
+                            context,
+                            if (ok) "已写入系统设置，无障碍将保持开启" else "写入系统设置失败",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        accessibilityOn = HarmonicaAccessibilityService.isEnabled()
+                    }) { Text("永久开启无障碍") }
+                } else {
+                    if (ShizukuGranter.available()) {
+                        Button(onClick = {
+                            if (!ShizukuGranter.granted()) {
+                                ShizukuGranter.requestPermission()
+                                Toast.makeText(context, "请在 Shizuku 弹窗中允许授权后重试", Toast.LENGTH_LONG).show()
+                            } else {
+                                val ok = ShizukuGranter.grantWriteSecureSettings() &&
+                                    AccessibilityGranter.tryEnable(context)
+                                Toast.makeText(
+                                    context,
+                                    if (ok) "已通过 Shizuku 授予权限并开启无障碍" else "Shizuku 授权失败",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            hasWss = AccessibilityGranter.hasWriteSecureSettings(context)
+                            accessibilityOn = HarmonicaAccessibilityService.isEnabled()
+                        }) { Text("通过 Shizuku 永久开启") }
+                    }
+                    Text(
+                        "或通过电脑执行一次 adb 命令完成授权：\nadb shell pm grant ${context.packageName} android.permission.WRITE_SECURE_SETTINGS\n授权后此处将出现「永久开启无障碍」。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
         // —— 第二步：悬浮窗 ——

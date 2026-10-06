@@ -37,7 +37,6 @@ import cc.eu.jeanwenzel.Noctreed.score.ScoreParser
 import cc.eu.jeanwenzel.Noctreed.service.HarmonicaAccessibilityService
 import cc.eu.jeanwenzel.Noctreed.service.OverlayController
 import cc.eu.jeanwenzel.Noctreed.service.OverlayService
-import cc.eu.jeanwenzel.Noctreed.service.PlayState
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,8 +78,6 @@ fun MainScreen() {
     var bpmText by remember { mutableStateOf("90") }
     // 编辑 BPM 时不允许轮询回写（否则输入 "1" 会被 coerceIn(30,300) 后强制改成 "30"）
     var bpmEditing by remember { mutableStateOf(false) }
-    val playState by OverlayController.playState.collectAsState()
-    val playing = playState != PlayState.IDLE
 
     // 当前编辑中的曲目名（载入/保存/重命名共用）
     var scoreName by remember { mutableStateOf("") }
@@ -310,10 +307,14 @@ fun MainScreen() {
 
                 // 导入 + 保存
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = {
-                        importLauncher.launch(arrayOf("*/*"))
-                    }) { Text("导入乐谱 / MIDI", maxLines = 1, softWrap = false) }
                     OutlinedButton(
+                        onClick = {
+                            importLauncher.launch(arrayOf("*/*"))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("导入乐谱 / MIDI", maxLines = 1, softWrap = false) }
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
                         enabled = scoreText.isNotBlank(),
                         onClick = {
                             nameInput = if (scoreName.isNotBlank()) scoreName
@@ -354,37 +355,6 @@ fun MainScreen() {
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-
-                // 演奏控制
-                if (!accessibilityOn) {
-                    Text(
-                        "缺少无障碍权限",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        enabled = accessibilityOn && calibrated && scoreText.isNotBlank() && !playing,
-                        onClick = {
-                            OverlayController.updateScore(scoreText)
-                            OverlayController.updateScoreName(scoreName.ifBlank { "未命名乐谱" })
-                            OverlayController.start(context)
-                        }
-                    ) { Text("开始", maxLines = 1, softWrap = false) }
-                    OutlinedButton(
-                        enabled = playing,
-                        onClick = {
-                            if (playState == PlayState.PLAYING) OverlayController.pause()
-                            else OverlayController.resume()
-                        }
-                    ) { Text(if (playState == PlayState.PAUSED) "继续" else "暂停", maxLines = 1, softWrap = false) }
-                    OutlinedButton(
-                        enabled = playing,
-                        onClick = { OverlayController.stop() }
-                    ) { Text("停止", maxLines = 1, softWrap = false) }
                 }
 
                 OutlinedButton(

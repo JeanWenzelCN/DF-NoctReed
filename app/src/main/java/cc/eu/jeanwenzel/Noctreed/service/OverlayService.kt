@@ -275,6 +275,10 @@ class OverlayService : Service() {
                 android.widget.Toast.makeText(this, "竖屏不可校准，请切换到横屏", android.widget.Toast.LENGTH_SHORT).show()
                 return@makeButton
             }
+            if (!calibrating && !pendingCalibrate && store.allCalibrated()) {
+                android.widget.Toast.makeText(this, "已完成校准，如需重新校准请在主界面清除后重试", android.widget.Toast.LENGTH_SHORT).show()
+                return@makeButton
+            }
             if (calibrating) {
                 // 校准中点击 = 取消校准
                 calibrating = false
@@ -405,13 +409,14 @@ class OverlayService : Service() {
                     else -> when (OverlayController.playState.value) {
                         PlayState.PLAYING -> "演奏中…"
                         PlayState.PAUSED -> "已暂停"
-                        PlayState.IDLE -> if (store.allCalibrated()) "就绪" else "未校准"
+                        PlayState.IDLE -> if (store.allCalibrated()) "就绪（音量键可暂停/停止）" else "未校准"
                     }
                 }
                 btnCalibrate.clearColorFilter()
             }
         }
-        btnCalibrate.isEnabled = !isPortrait
+        // 已校准且横屏时禁用校准按钮（此时无需再校准，防止误触清空流程）
+        btnCalibrate.isEnabled = !isPortrait && !store.allCalibrated()
         btnCalibrate.alpha = if (btnCalibrate.isEnabled) 1f else 0.4f
         // 演奏/暂停按钮可用性：用 isEnabled 真实禁用（修复视觉灰但仍可点的缺陷）
         val st = OverlayController.playState.value

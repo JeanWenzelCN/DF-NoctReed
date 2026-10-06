@@ -3,6 +3,7 @@ package cc.eu.jeanwenzel.Noctreed.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
+import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,30 @@ class HarmonicaAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+
+    // 演奏期间无障碍手势持续下发，用户触摸会被抑制，悬浮窗按钮难以点击，
+    // 因此用音量键作为控制通道：音量上 = 暂停/继续，音量下 = 停止。
+    // 仅在非 IDLE 状态下拦截按键，其余场景放行以不影响正常调音量。
+    override fun onKeyEvent(event: KeyEvent?): Boolean {
+        if (event == null || event.action != KeyEvent.ACTION_DOWN) return super.onKeyEvent(event)
+        val st = OverlayController.playState.value
+        if (st == PlayState.IDLE) return super.onKeyEvent(event)
+        return when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                when (st) {
+                    PlayState.PLAYING -> OverlayController.pause()
+                    PlayState.PAUSED -> OverlayController.resume()
+                    else -> {}
+                }
+                true
+            }
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                OverlayController.stop()
+                true
+            }
+            else -> super.onKeyEvent(event)
+        }
+    }
 
     override fun onInterrupt() {
         stopPlaying()

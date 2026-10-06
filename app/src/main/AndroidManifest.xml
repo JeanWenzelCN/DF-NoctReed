@@ -27,6 +27,7 @@
         <service
             android:name=".service.HarmonicaAccessibilityService"
             android:exported="true"
+            android:canRequestFilterKeyEvents="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -36,7 +37,7 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-<service
+        <service
             android:name=".service.OverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
